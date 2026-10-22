@@ -19,26 +19,44 @@ const createApp = () => {
         crossOriginResourcePolicy: { policy: 'cross-origin' }
     }));
     // CORS configuration
-    const allowedOrigins = config_1.config.cors.origin
+    const configuredOrigins = config_1.config.cors.origin
         ? config_1.config.cors.origin.split(',').map(o => o.trim()).filter(Boolean)
         : [];
+    const isOriginAllowed = (origin) => {
+        // If specific origins configured via CORS_ORIGIN
+        if (configuredOrigins.length > 0) {
+            if (configuredOrigins.includes(origin) || configuredOrigins.includes('*'))
+                return true;
+        }
+        // Always permit the production frontend and vercel preview domains
+        if (origin === 'https://mani-annan.vercel.app')
+            return true;
+        if (origin.endsWith('.vercel.app'))
+            return true;
+        // Always permit local development
+        if (origin === 'http://localhost:3000' ||
+            origin === 'http://localhost:3001' ||
+            origin === 'http://127.0.0.1:3000')
+            return true;
+        // If no specific CORS_ORIGIN was provided, allow by default
+        if (configuredOrigins.length === 0)
+            return true;
+        return false;
+    };
     const corsOptions = {
         origin: (origin, callback) => {
             // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
             if (!origin)
                 return callback(null, true);
-            // If specific origins configured, check match; otherwise permit origin
-            if (allowedOrigins.length > 0) {
-                if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-                    return callback(null, true);
-                }
-                return callback(new Error(`CORS blocked for origin: ${origin}`));
+            if (isOriginAllowed(origin)) {
+                return callback(null, true);
             }
-            return callback(null, true);
+            return callback(null, false);
         },
         credentials: true,
         methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With']
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin'],
+        maxAge: 86400
     };
     app.use((0, cors_1.default)(corsOptions));
     app.options('*', (0, cors_1.default)(corsOptions));

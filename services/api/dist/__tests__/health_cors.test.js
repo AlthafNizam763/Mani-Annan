@@ -45,6 +45,15 @@ describe('Server Status, Health & CORS Verification', () => {
         expect(res.headers['access-control-allow-origin']).toBe('https://mani-annan.vercel.app');
         expect(res.headers['access-control-allow-credentials']).toBe('true');
     });
+    it('verifies CORS permits vercel preview deployments (*.vercel.app)', async () => {
+        const res = await (0, supertest_1.default)(app)
+            .options('/api/v1/me')
+            .set('Origin', 'https://mani-annan-git-feat-preview.vercel.app')
+            .set('Access-Control-Request-Method', 'POST')
+            .set('Access-Control-Request-Headers', 'authorization,content-type');
+        expect(res.status).toBe(204);
+        expect(res.headers['access-control-allow-origin']).toBe('https://mani-annan-git-feat-preview.vercel.app');
+    });
     it('verifies Cross-Origin-Resource-Policy is set to cross-origin', async () => {
         const res = await (0, supertest_1.default)(app).get('/health');
         expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin');
@@ -55,9 +64,21 @@ describe('Server Status, Health & CORS Verification', () => {
     });
 });
 describe('Frontend API Base URL Normalization Rules', () => {
-    // Test the exact normalization algorithm implemented in apps/web/src/lib/api.ts
-    function resolveApiUrl(rawBase, path) {
-        const base = (rawBase || 'http://localhost:8001/api/v1').trim().replace(/\/+$/, '');
+    const PRODUCTION_API_URL = 'https://mani-annan.onrender.com/api/v1';
+    const LOCAL_DEV_API_URL = 'http://localhost:8001/api/v1';
+    function getEffectiveApiBase(rawBase, mockHostname) {
+        if (rawBase && rawBase.trim().length > 0) {
+            return rawBase.trim();
+        }
+        if (mockHostname) {
+            const isLocal = mockHostname === 'localhost' || mockHostname === '127.0.0.1';
+            return isLocal ? LOCAL_DEV_API_URL : PRODUCTION_API_URL;
+        }
+        return LOCAL_DEV_API_URL;
+    }
+    function resolveApiUrl(rawBase, path, mockHostname) {
+        const effectiveBase = getEffectiveApiBase(rawBase, mockHostname);
+        const base = effectiveBase.replace(/\/+$/, '');
         const cleanPath = path.startsWith('/') ? path : `/${path}`;
         if (base.endsWith('/api/v1')) {
             if (cleanPath === '/api/v1') {
@@ -89,8 +110,12 @@ describe('Frontend API Base URL Normalization Rules', () => {
         const url = resolveApiUrl('https://mani-annan.onrender.com/api/v1', '/api/v1/drafts');
         expect(url).toBe('https://mani-annan.onrender.com/api/v1/drafts');
     });
-    it('uses default localhost fallback when env var is undefined', () => {
-        const url = resolveApiUrl(undefined, '/me');
+    it('safely falls back to production Render backend when hosted on Vercel and env var is not set', () => {
+        const url = resolveApiUrl(undefined, '/me', 'mani-annan.vercel.app');
+        expect(url).toBe('https://mani-annan.onrender.com/api/v1/me');
+    });
+    it('uses localhost fallback for local development when env var is not set', () => {
+        const url = resolveApiUrl(undefined, '/me', 'localhost');
         expect(url).toBe('http://localhost:8001/api/v1/me');
     });
 });

@@ -156,7 +156,7 @@ export default function Dashboard() {
         status: isUnconfigured ? 'not_configured' : 'error',
         error: isNetworkError ? 'BackendOffline' : (err.error || 'ConnectionError'),
         message: isNetworkError
-          ? 'Cannot connect to the Mani API server at http://localhost:8001. Please make sure the backend server is running (run: npm run dev:api).'
+          ? 'Cannot connect to the Mani API server. Please verify your internet connection and backend deployment.'
           : (err.message || 'WhatsApp integration not configured.')
       });
     } finally {
@@ -190,7 +190,7 @@ export default function Dashboard() {
         status: isUnconfigured ? 'not_configured' : 'error',
         error: isNetworkError ? 'BackendOffline' : (err.error || 'RefreshError'),
         message: isNetworkError
-          ? 'Cannot connect to the Mani API server at http://localhost:8001. Please make sure the backend server is running (run: npm run dev:api).'
+          ? 'Cannot connect to the Mani API server. Please verify your internet connection and backend deployment.'
           : (err.message || 'Failed to refresh QR code.')
       });
     } finally {
