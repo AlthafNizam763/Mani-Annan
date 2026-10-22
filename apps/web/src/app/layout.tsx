@@ -6,9 +6,15 @@ export const metadata: Metadata = {
   title: "Mani-Annan — AI Personal Messaging Assistant",
   description: "An authentic personal AI messaging assistant conditioned on your real communication style with relationship safety boundaries.",
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
-    apple: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
 };
 
