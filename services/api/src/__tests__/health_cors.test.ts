@@ -64,6 +64,35 @@ describe('Server Status, Health & CORS Verification', () => {
     expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin');
   });
 
+  it('verifies CORS preflight OPTIONS on WhatsApp connect endpoint', async () => {
+    const res = await request(app)
+      .options('/api/v1/integrations/whatsapp/session/connect')
+      .set('Origin', 'https://mani-annan.vercel.app')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'authorization,content-type');
+
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe('https://mani-annan.vercel.app');
+  });
+
+  it('returns 401 with CORS headers when calling /api/v1/me without auth token', async () => {
+    const res = await request(app)
+      .get('/api/v1/me')
+      .set('Origin', 'https://mani-annan.vercel.app');
+
+    expect(res.status).toBe(401);
+    expect(res.headers['access-control-allow-origin']).toBe('https://mani-annan.vercel.app');
+    expect(res.body.error).toBe('Unauthorized');
+  });
+
+  it('confirms /me requires /api/v1 prefix (root /me returns 404)', async () => {
+    const res = await request(app)
+      .get('/me')
+      .set('Origin', 'https://mani-annan.vercel.app');
+
+    expect(res.status).toBe(404);
+  });
+
   it('returns 404 for unknown routes without crashing', async () => {
     const res = await request(app).get('/non-existent-endpoint');
     expect(res.status).toBe(404);
