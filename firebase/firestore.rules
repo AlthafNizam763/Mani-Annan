@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Disallow root collection access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Per-user subcollections under users/{uid}
+    match /users/{uid} {
+      // Owner can read and write their own profile root
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Settings subcollection
+      match /settings/{settingId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Contacts subcollection
+      match /contacts/{contactId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Chat Imports subcollection
+      match /imports/{importId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Curated Examples subcollection
+      match /examples/{exampleId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Drafts subcollection
+      match /drafts/{draftId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Feedback subcollection
+      match /feedback/{feedbackId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Rules subcollection
+      match /rules/{ruleId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Audit Events subcollection (read-only for user; written by verified backend)
+      match /auditEvents/{eventId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false; // Only backend admin writes audit events
+      }
+    }
+  }
+}
