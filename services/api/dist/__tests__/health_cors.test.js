@@ -86,16 +86,50 @@ describe('Server Status, Health & CORS Verification', () => {
         expect(res.status).toBe(404);
     });
 });
-describe('Frontend API Base URL Normalization Rules', () => {
+describe('Frontend API Base URL Normalization Rules & Production Safe Guard', () => {
     const PRODUCTION_API_URL = 'https://mani-annan.onrender.com/api/v1';
     const LOCAL_DEV_API_URL = 'http://localhost:8001/api/v1';
+    function isLocalAddress(urlOrHost) {
+        if (!urlOrHost)
+            return false;
+        return /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)(:\d+)?(\/.*)?$/i.test(urlOrHost.trim());
+    }
     function getEffectiveApiBase(rawBase, mockHostname) {
-        if (rawBase && rawBase.trim().length > 0) {
-            return rawBase.trim();
-        }
+        const trimmed = rawBase?.trim();
+        let hostname = null;
         if (mockHostname) {
-            const isLocal = mockHostname === 'localhost' || mockHostname === '127.0.0.1';
-            return isLocal ? LOCAL_DEV_API_URL : PRODUCTION_API_URL;
+            hostname = mockHostname;
+        }
+        else if (typeof window !== 'undefined' && window.location) {
+            hostname = window.location.hostname;
+        }
+        if (hostname) {
+            const isLocalBrowser = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+            if (!isLocalBrowser) {
+                if (trimmed && isLocalAddress(trimmed)) {
+                    return PRODUCTION_API_URL;
+                }
+                if (trimmed && trimmed.length > 0) {
+                    return trimmed;
+                }
+                return PRODUCTION_API_URL;
+            }
+            if (trimmed && trimmed.length > 0) {
+                return trimmed;
+            }
+            return LOCAL_DEV_API_URL;
+        }
+        if (process.env.NODE_ENV === 'production') {
+            if (trimmed && isLocalAddress(trimmed)) {
+                return PRODUCTION_API_URL;
+            }
+            if (trimmed && trimmed.length > 0) {
+                return trimmed;
+            }
+            return PRODUCTION_API_URL;
+        }
+        if (trimmed && trimmed.length > 0) {
+            return trimmed;
         }
         return LOCAL_DEV_API_URL;
     }
@@ -133,12 +167,24 @@ describe('Frontend API Base URL Normalization Rules', () => {
         const url = resolveApiUrl('https://mani-annan.onrender.com/api/v1', '/api/v1/drafts');
         expect(url).toBe('https://mani-annan.onrender.com/api/v1/drafts');
     });
+    it('strictly rejects accidental localhost base URL when hosted on Vercel production', () => {
+        const url = resolveApiUrl('http://localhost:8001/api/v1', '/me', 'mani-annan.vercel.app');
+        expect(url).toBe('https://mani-annan.onrender.com/api/v1/me');
+    });
+    it('strictly rejects 127.0.0.1 base URL when hosted on Vercel preview domain', () => {
+        const url = resolveApiUrl('http://127.0.0.1:8001', '/integrations/whatsapp/session/connect', 'mani-annan-preview.vercel.app');
+        expect(url).toBe('https://mani-annan.onrender.com/api/v1/integrations/whatsapp/session/connect');
+    });
     it('safely falls back to production Render backend when hosted on Vercel and env var is not set', () => {
         const url = resolveApiUrl(undefined, '/me', 'mani-annan.vercel.app');
         expect(url).toBe('https://mani-annan.onrender.com/api/v1/me');
     });
     it('uses localhost fallback for local development when env var is not set', () => {
         const url = resolveApiUrl(undefined, '/me', 'localhost');
+        expect(url).toBe('http://localhost:8001/api/v1/me');
+    });
+    it('allows intentional localhost base URL during local development', () => {
+        const url = resolveApiUrl('http://localhost:8001/api/v1', '/me', 'localhost');
         expect(url).toBe('http://localhost:8001/api/v1/me');
     });
 });
