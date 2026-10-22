@@ -16,6 +16,10 @@ class GeminiLLMProvider {
         this.modelName = modelName || config_1.config.llm.geminiModel;
     }
     async generateReply(context) {
+        const key = config_1.config.llm.geminiApiKey;
+        if (!key || key === 'dummy_key') {
+            throw new Error('[GeminiLLMProvider] GEMINI_API_KEY is not configured on the backend. Please set the GEMINI_API_KEY environment variable on Render.');
+        }
         const model = this.client.getGenerativeModel({
             model: this.modelName,
             generationConfig: {

@@ -1,6 +1,26 @@
 import { auth } from './firebase';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1';
+export function resolveApiUrl(rawBase: string | undefined, path: string): string {
+  const base = (rawBase || 'http://localhost:8001/api/v1').trim().replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  // If base already ends with /api/v1
+  if (base.endsWith('/api/v1')) {
+    if (cleanPath === '/api/v1') {
+      return base;
+    }
+    if (cleanPath.startsWith('/api/v1/')) {
+      return `${base}${cleanPath.slice(7)}`;
+    }
+    return `${base}${cleanPath}`;
+  }
+
+  // If base does not end with /api/v1
+  if (cleanPath.startsWith('/api/v1')) {
+    return `${base}${cleanPath}`;
+  }
+  return `${base}/api/v1${cleanPath}`;
+}
 
 export async function apiRequest<T = any>(
   path: string,
@@ -30,7 +50,8 @@ export async function apiRequest<T = any>(
     headers['Authorization'] = `Bearer ${activeToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const fullUrl = resolveApiUrl(process.env.NEXT_PUBLIC_API_URL, path);
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,

@@ -45,8 +45,45 @@ if (!admin.apps.length) {
     }
     const projId = process.env.GCLOUD_PROJECT || config_1.config.firebase.projectId || 'mani-annan';
     process.env.GCLOUD_PROJECT = projId;
+    const isEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_AUTH_EMULATOR_HOST);
+    let credential;
+    if (isEmulator) {
+        // Emulators do not require cloud credentials
+        console.log(`[Firebase] Initialized with local emulators (Firestore: ${process.env.FIRESTORE_EMULATOR_HOST || 'none'}, Auth: ${process.env.FIREBASE_AUTH_EMULATOR_HOST || 'none'})`);
+    }
+    else if (config_1.config.firebase.serviceAccountKey) {
+        try {
+            const parsed = JSON.parse(config_1.config.firebase.serviceAccountKey);
+            credential = admin.credential.cert(parsed);
+            console.log(`[Firebase] Initialized with FIREBASE_SERVICE_ACCOUNT_KEY for project: ${projId}`);
+        }
+        catch (err) {
+            console.error('[Firebase] Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY JSON:', err.message);
+        }
+    }
+    else if (config_1.config.firebase.clientEmail && config_1.config.firebase.privateKey) {
+        try {
+            const formattedKey = config_1.config.firebase.privateKey.replace(/\\n/g, '\n');
+            credential = admin.credential.cert({
+                projectId: projId,
+                clientEmail: config_1.config.firebase.clientEmail,
+                privateKey: formattedKey
+            });
+            console.log(`[Firebase] Initialized with FIREBASE_CLIENT_EMAIL (${config_1.config.firebase.clientEmail}) for project: ${projId}`);
+        }
+        catch (err) {
+            console.error('[Firebase] Failed to configure credentials from FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY:', err.message);
+        }
+    }
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        console.log(`[Firebase] Using GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`);
+    }
+    else {
+        console.warn(`[Firebase] WARNING: No Firebase Admin credentials found (FIREBASE_SERVICE_ACCOUNT_KEY or FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY). Firestore and Auth operations will fail on cloud platforms without Google Application Default Credentials.`);
+    }
     admin.initializeApp({
-        projectId: projId
+        projectId: projId,
+        ...(credential ? { credential } : {})
     });
 }
 exports.db = admin.firestore();
